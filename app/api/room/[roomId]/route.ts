@@ -9,10 +9,10 @@ interface RoomData {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { roomId: string } }
+  context: { params: Promise<{ roomId: string }> }
 ) {
   try {
-    const { roomId } = params
+    const { roomId } = await context.params
 
     // Get room data from KV
     const roomData = await kv.get<RoomData>(`room:${roomId}`)
@@ -38,10 +38,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { roomId: string } }
+  context: { params: Promise<{ roomId: string }> }
 ) {
   try {
-    const { roomId } = params
+    const { roomId } = await context.params
     const { content } = await request.json()
 
     // Get current version
