@@ -19,11 +19,15 @@ export default function RoomPage() {
   const [loadError, setLoadError] = useState(false)
   const [saveError, setSaveError] = useState(false)
   const [copyError, setCopyError] = useState(false)
+  const [contentCopied, setContentCopied] = useState(false)
+  const [contentCopyError, setContentCopyError] = useState(false)
   const syncError = loadError || saveError
 
   const contentRef = useRef(content)
   const saveTimeoutRef = useRef<NodeJS.Timeout>()
   const pollIntervalRef = useRef<NodeJS.Timeout>()
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Update ref when content changes
   useEffect(() => {
@@ -117,6 +121,23 @@ export default function RoomPage() {
     }
   }
 
+  const copyContent = async () => {
+    if (!content) return
+    if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current)
+    setContentCopied(false)
+    setContentCopyError(false)
+    try {
+      await navigator.clipboard.writeText(content)
+      setContentCopied(true)
+      copiedTimeoutRef.current = setTimeout(() => setContentCopied(false), 2000)
+    } catch {
+      // Keep manual copying available when the browser denies clipboard access.
+      textareaRef.current?.focus()
+      textareaRef.current?.select()
+      setContentCopyError(true)
+    }
+  }
+
   // Initial load
   useEffect(() => {
     fetchContent(true)
@@ -138,6 +159,7 @@ export default function RoomPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current)
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
@@ -153,10 +175,10 @@ export default function RoomPage() {
       <div className={styles.header}>
         <div>
           <div className={styles.eyebrow}>ONE ROOM. ALL YOUR DEVICES.</div>
-          <h1 className={styles.roomTitle}>A shared space for your thoughts.</h1>
+          <h1 className={styles.roomTitle}><span className={styles.desktopTitle}>Your shared clipboard.</span><span className={styles.mobileTitle}>Clipboard</span></h1>
           <p className={styles.description}>Paste something here. Pick it up on your next device.</p>
         </div>
-        <Link href="/" className={styles.backButton}><Icon name="back" size={16} />Back to Home</Link>
+        <Link href="/" className={styles.backButton} aria-label="Back to Home"><Icon name="back" size={16} /><span className={styles.backLabel}>Back to Home</span></Link>
       </div>
       <div className={styles.roomBar}>
         <div className={styles.roomIdentity}><span className={styles.roomLabel}>ROOM ID</span><code className={styles.roomId}>{roomId}</code>
@@ -173,15 +195,30 @@ export default function RoomPage() {
 
       <div className={styles.editorContainer}>
         <div className={styles.editorHeader}>
-          <h2 className={styles.editorTitle}><Icon name="clipboard" size={17} />Shared Clipboard</h2>
-          <div className={`${styles.status} ${syncError ? styles.statusError : ''}`} role="status">
-            <div className={`${styles.statusDot} ${isSyncing || !loaded ? styles.syncing : ''}`}></div>
-            <span>{syncError ? 'Connection error' : !loaded ? 'Connecting...' : isSyncing ? 'Saving...' : 'Synced'}</span>
+          <h2 className={styles.editorTitle}><Icon name="clipboard" size={17} />Editor</h2>
+          <div className={styles.editorActions}>
+            <div className={`${styles.status} ${syncError ? styles.statusError : ''}`} role="status">
+              <div className={`${styles.statusDot} ${isSyncing || !loaded ? styles.syncing : ''}`}></div>
+              <span>{syncError ? 'Connection error' : !loaded ? 'Connecting...' : isSyncing ? 'Saving...' : 'Synced'}</span>
+            </div>
+            <button
+              type="button"
+              onClick={copyContent}
+              disabled={!content}
+              className={`${styles.copyContentButton} ${contentCopied ? styles.copied : ''}`}
+              aria-label={contentCopied ? 'Clipboard content copied' : 'Copy all text'}
+              title="Copy all text"
+            >
+              <Icon name={contentCopied ? 'check' : 'copy'} size={15} />
+              <span aria-live="polite">{contentCopied ? 'Copied' : 'Copy'}</span>
+            </button>
           </div>
         </div>
         {syncError && <p className={styles.error} role="alert">Unable to sync. Keep this page open and check your connection. Edit again to retry saving.</p>}
+        {contentCopyError && <p className={styles.error} role="alert">Automatic copy was blocked. The text is selected; use your device’s Copy action.</p>}
 
         <textarea
+          ref={textareaRef}
           className={styles.textarea}
           aria-label="Shared Clipboard"
           value={content}
