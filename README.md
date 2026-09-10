@@ -240,7 +240,7 @@ npm run lint
 npm test
 ```
 
-These use Node's built-in test runner and a simulated Redis client to check authentication, successful heartbeat writes, and failure handling without contacting a live database.
+These use Node's built-in test runner to check cron authentication, heartbeat writes, failure handling, and Redis URL compatibility without contacting a live database. A regression check also initializes the real ioredis client with lazy connection enabled to verify that the deprecated URL parser is not called.
 
 ## Troubleshooting
 

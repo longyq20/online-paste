@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Redis from 'ioredis'
+import { redisOptionsFromUrl } from '@/lib/redis-options'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -30,7 +31,8 @@ export async function GET(request: NextRequest) {
   try {
     // A short-lived connection keeps cron failures bounded and avoids holding
     // a connection for the rest of the day. Only authenticated requests connect.
-    redis = new Redis(redisUrl, {
+    redis = new Redis({
+      ...redisOptionsFromUrl(redisUrl),
       lazyConnect: true,
       connectTimeout: 5000,
       commandTimeout: 5000,

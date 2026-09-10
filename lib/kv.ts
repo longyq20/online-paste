@@ -1,4 +1,5 @@
 import Redis from 'ioredis'
+import { redisOptionsFromUrl } from './redis-options'
 
 interface RoomData {
   content: string
@@ -31,7 +32,8 @@ class RedisAdapter {
   private client: Redis
 
   constructor(url: string) {
-    this.client = new Redis(url, {
+    this.client = new Redis({
+      ...redisOptionsFromUrl(url),
       maxRetriesPerRequest: 3,
       retryStrategy(times) {
         const delay = Math.min(times * 50, 2000)

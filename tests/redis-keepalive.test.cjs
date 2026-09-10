@@ -1,27 +1,23 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
-const vm = require('node:vm')
-const ts = require('typescript')
+const loadTypeScript = require('./helpers/load-typescript.cjs')
 
 // Compile the actual route without adding a test framework or TS runtime.
 const routePath = path.join(__dirname, '../app/api/cron/redis-keepalive/route.ts')
-const compiled = ts.transpileModule(fs.readFileSync(routePath, 'utf8'), {
-  compilerOptions: {
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2020,
-    esModuleInterop: true,
-  },
-}).outputText
+const redisOptions = loadTypeScript(path.join(__dirname, '../lib/redis-options.ts'))
 
 function setup({ env = {}, fail = false, acknowledgement = 'OK' } = {}) {
   const writes = []
   const logs = []
   let connections = 0
   let disconnects = 0
+  let connectionOptions
   class Redis {
-    constructor() { connections++ }
+    constructor(options) {
+      connections++
+      connectionOptions = options
+    }
     on() {}
     async set(...args) {
       if (fail) throw new Error('Connection failed: secret-must-not-leak')
@@ -30,25 +26,27 @@ function setup({ env = {}, fail = false, acknowledgement = 'OK' } = {}) {
     }
     disconnect() { disconnects++ }
   }
-  const module = { exports: {} }
-  vm.runInNewContext(compiled, {
-    module,
-    exports: module.exports,
-    require: (name) => name === 'ioredis' ? Redis : require(name),
+  const route = loadTypeScript(routePath, {
+    require: (name) => {
+      if (name === 'ioredis') return Redis
+      if (name === '@/lib/redis-options') return redisOptions
+      return require(name)
+    },
     process: { env },
     console: {
       info: (...args) => logs.push(args),
       error: (...args) => logs.push(args),
     },
-  }, { filename: routePath })
+  })
   return {
-    invoke: (authorization) => module.exports.GET(new Request('http://localhost/api/cron/redis-keepalive', {
+    invoke: (authorization) => route.GET(new Request('http://localhost/api/cron/redis-keepalive', {
       headers: authorization ? { authorization } : {},
     })),
     writes,
     logs,
     get connections() { return connections },
     get disconnects() { return disconnects },
+    get connectionOptions() { return connectionOptions },
   }
 }
 
@@ -94,6 +92,9 @@ test('authenticated runs overwrite one expiring heartbeat key, leaving rooms alo
   }
   assert.equal(app.writes.length, 2)
   assert.equal(app.disconnects, 2)
+  assert.equal(typeof app.connectionOptions, 'object')
+  assert.equal(app.connectionOptions.host, 'localhost')
+  assert.equal(app.connectionOptions.port, 6379)
 })
 
 test('Redis failures return 503, release the connection, and hide sensitive error details', async () => {
@@ -111,4 +112,12 @@ test('an unacknowledged write is not reported as a successful heartbeat', async 
   const app = setup({ env, acknowledgement: null })
   assert.equal((await app.invoke(authorization)).status, 503)
   assert.equal(app.disconnects, 1)
+})
+
+test('invalid Redis URLs fail without connecting or exposing credentials', async () => {
+  const app = setup({ env: { ...env, REDIS_URL: 'https://user:secret-must-not-leak@example.com' } })
+  const response = await app.invoke(authorization)
+  assert.equal(response.status, 503)
+  assert.equal(app.connections, 0)
+  assert.doesNotMatch(await response.text(), /secret-must-not-leak/)
 })
