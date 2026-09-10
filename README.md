@@ -9,7 +9,8 @@ A real-time clipboard sharing platform built with Next.js and Vercel KV, allowin
 - 💾 **Persistent Storage**: Content is saved to Vercel KV and persists for 7 days
 - ⚡ **Optimized Performance**: Debounced saves (1 second) to reduce API calls
 - 📱 **Responsive Design**: Works seamlessly on desktop and mobile devices
-- 🎨 **Modern UI**: Beautiful gradient design with smooth animations
+- 🎨 **Acrylic UI**: Frosted panels, subtle grid backgrounds, and compact rounded corners
+- 🌓 **Light and Dark Themes**: Light blue and dark palettes, with a system preference option. Use the header controls to switch; your choice is remembered on this browser.
 
 ## Tech Stack
 
@@ -64,28 +65,34 @@ npm run dev
 3. Click "Add New Project"
 4. Import your GitHub repository
 
-### Step 2: Set up Vercel KV
+### Step 2: Set up Redis
 
-1. In your Vercel project dashboard, go to the "Storage" tab
-2. Click "Create Database"
-3. Select "KV" (Redis)
-4. Choose a name for your database
-5. Click "Create"
+Create a Redis Cloud database (or use your existing Redis provider) and copy its Redis connection URL. This project connects directly through `ioredis`.
 
-### Step 3: Connect KV to Your Project
+### Step 3: Configure Environment Variables
 
-1. After creating the KV database, click "Connect to Project"
-2. Select your project
-3. Vercel will automatically add the required environment variables:
-   - `KV_REST_API_URL`
-   - `KV_REST_API_TOKEN`
-   - `KV_REST_API_READ_ONLY_TOKEN`
+In the Vercel project's **Settings → Environment Variables**, add these to **Production**:
+
+- `REDIS_URL`: Your complete `redis://username:password@host:port` connection URL (or `rediss://` if the provider requires TLS).
+- `CRON_SECRET`: A separate random secret of at least 32 characters for the daily keep-alive endpoint. Vercel sends it automatically as `Authorization: Bearer <CRON_SECRET>`.
+
+Generate a cron secret locally with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. Store credentials only in environment variables, never in source control. Redis REST variables such as `KV_REST_API_URL` are not used by this project.
 
 ### Step 4: Deploy
 
 1. Click "Deploy" in the Vercel dashboard
 2. Your application will be built and deployed automatically
 3. You'll receive a production URL (e.g., `your-app.vercel.app`)
+
+### Daily Redis Keep-alive
+
+`vercel.json` schedules `/api/cron/redis-keepalive` once per day at **02:00 UTC (10:00 Asia/Shanghai)**. Vercel Hobby may run it anywhere within that hour. Cron jobs run on the production deployment, including when no users have the website open; local development and preview deployments do not start this schedule.
+
+Each authenticated invocation writes the current timestamp to one dedicated key, `online-paste:keepalive`, with a 3-day expiry. The same key is overwritten each day, without creating rooms or changing clipboard contents and their existing 7-day expiry. A real Redis write is used because [Redis Cloud's inactivity policy](https://support.redislabs.com/hc/en-us/articles/33138489404818-Free-Redis-Cloud-Database-Deleted-Due-to-Inactivity) describes deletion of free databases after 14 consecutive days without read/write activity.
+
+After setting `REDIS_URL` and `CRON_SECRET`, deploy these changes to Production. In **Settings → Cron Jobs**, confirm the daily job is enabled, run it once, and inspect its logs. Success returns `200` with `ok: true` and `lastKeepAlive`; Redis failures or missing configuration return `503`, and unauthorized requests return `401`. The endpoint always disables response caching and closes its short-lived Redis connection. Vercel does not automatically retry failed cron invocations, so investigate failures in its logs.
+
+This prevents inactivity only while writes keep succeeding; it cannot restore an already-deleted database or override provider policy changes. See [Vercel Cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs) and [Hobby scheduling limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
 
 ## How It Works
 
@@ -226,6 +233,14 @@ npm start
 ```bash
 npm run lint
 ```
+
+### Keep-alive Endpoint Checks
+
+```bash
+npm test
+```
+
+These use Node's built-in test runner and a simulated Redis client to check authentication, successful heartbeat writes, and failure handling without contacting a live database.
 
 ## Troubleshooting
 
