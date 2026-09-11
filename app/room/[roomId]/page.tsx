@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import Icon from '../../components/ui-icon'
@@ -20,6 +20,8 @@ export default function RoomPage() {
   const [nextId, setNextId] = useState(2)
   const [copied, setCopied] = useState(false)
   const [copiedEditor, setCopiedEditor] = useState<number | null>(null)
+  const localVersion = useRef(0)
+  const dirty = useRef(false)
   const total = useMemo(() => users.reduce((n, user) => n + user.text.length, 0), [users])
   useEffect(() => {
     const key = 'online-paste-user-id'
@@ -29,16 +31,17 @@ export default function RoomPage() {
   }, [])
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined
-    const load = async () => { try { const response = await fetch(`/api/room/${roomId}${isChat ? '?mode=chat' : ''}`, { cache: 'no-store' }); const data = await response.json(); if (data.mode) setServerMode(data.mode); if (isChat && Array.isArray(data.users) && data.users.length) setUsers(value => { const own = value.find(user => user.uid.startsWith(`user-`)); const remote = data.users.filter((user: Participant) => user.uid !== own?.uid); return own ? [...remote, own] : data.users }); else if (!isChat && typeof data.content === 'string') setUsers(value => [{ ...value[0], text: data.content }]) } catch { /* keep editing offline */ } }
+    const load = async () => { try { const response = await fetch(`/api/room/${roomId}${isChat ? '?mode=chat' : ''}`, { cache: 'no-store' }); const data = await response.json(); if (data.mode) setServerMode(data.mode); if (isChat && Array.isArray(data.users) && data.users.length) setUsers(value => { const own = value.find(user => user.uid.startsWith(`user-`)); const remote = data.users.filter((user: Participant) => user.uid !== own?.uid); return own ? [...remote, own] : data.users }); else if (!isChat && typeof data.content === 'string' && typeof data.version === 'number' && data.version > localVersion.current && !dirty.current) { localVersion.current = data.version; setUsers(value => [{ ...value[0], text: data.content }]) } } catch { /* keep editing offline */ } }
     load(); timer = setInterval(load, 2000); return () => timer && clearInterval(timer)
   }, [roomId, isChat])
   useEffect(() => {
-    const timer = setTimeout(() => { const body = isChat ? { users } : { content: users[0]?.text || '' }; fetch(`/api/room/${roomId}${isChat ? '?mode=chat' : ''}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {}) }, 800)
+    if (!isChat && !dirty.current) return
+    const timer = setTimeout(async () => { const body = isChat ? { users } : { content: users[0]?.text || '' }; try { const response = await fetch(`/api/room/${roomId}${isChat ? '?mode=chat' : ''}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const data = await response.json(); if (!isChat && typeof data.version === 'number') localVersion.current = data.version; dirty.current = false } catch { /* retry on next local edit */ } }, 800)
     return () => clearTimeout(timer)
   }, [users, roomId, isChat])
   const copyRoomId = async () => { await navigator.clipboard.writeText(window.location.href); setCopied(true); window.setTimeout(() => setCopied(false), 1600) }
   const addUser = () => { const id = nextId; setNextId(id + 1); setUsers(value => [...value, { uid: `local-${makeId()}`, id, name: `访客 ${id}`, color: colors[(id - 1) % colors.length], text: '', status: 'editing' }]) }
-  const update = (id: number, text: string) => setUsers(value => value.map(user => user.id === id ? { ...user, text, status: 'editing' } : user))
+  const update = (id: number, text: string) => { dirty.current = true; setUsers(value => value.map(user => user.id === id ? { ...user, text, status: 'editing' } : user)) }
   const finish = (id: number) => setUsers(value => value.map(user => user.id === id ? { ...user, status: 'done' } : user))
   const copyEditor = async (user: Participant) => { if (!user.text) return; await navigator.clipboard.writeText(user.text); setCopiedEditor(user.id); window.setTimeout(() => setCopiedEditor(null), 1600) }
   return <main id="main-content" className={styles.container}>
