@@ -28,7 +28,7 @@ export default function RoomPage() {
   useEffect(() => {
     const key = 'online-paste-user-id'
     let uid = ''
-    try { uid = sessionStorage.getItem(key) || `user-${makeId()}`; sessionStorage.setItem(key, uid) } catch { uid = `user-${makeId()}` }
+    try { uid = localStorage.getItem(key) || `user-${makeId()}`; localStorage.setItem(key, uid) } catch { uid = `user-${makeId()}` }
     setUsers(value => value.map(user => user.uid === 'local-self' ? { ...user, uid } : user))
     setUsers(value => value.map(user => user.ownerUid === 'local-self' ? { ...user, ownerUid: uid } : user))
     setOwnUid(uid)
@@ -40,7 +40,7 @@ export default function RoomPage() {
   }, [roomId, isChat])
   useEffect(() => {
     if (!isChat && !dirty.current) return
-    const timer = setTimeout(async () => { const body = isChat ? { user: users.find(user => user.uid.startsWith('user-')) || users[0] } : { content: users[0]?.text || '' }; if (!isChat) setSyncState('syncing'); try { const response = await fetch(`/api/room/${roomId}${isChat ? '?mode=chat' : ''}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const data = await response.json(); if (!isChat && typeof data.version === 'number') localVersion.current = data.version; setSyncState('synced'); dirty.current = false } catch { /* retry on next local edit */ } }, 800)
+    const timer = setTimeout(async () => { const body = isChat ? { users: users.filter(user => user.ownerUid === ownUid) } : { content: users[0]?.text || '' }; if (!isChat) setSyncState('syncing'); try { const response = await fetch(`/api/room/${roomId}${isChat ? '?mode=chat' : ''}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const data = await response.json(); if (!isChat && typeof data.version === 'number') localVersion.current = data.version; setSyncState('synced'); dirty.current = false } catch { /* retry on next local edit */ } }, 800)
     return () => clearTimeout(timer)
   }, [users, roomId, isChat])
   const copyRoomId = async () => { await navigator.clipboard.writeText(window.location.href); setCopied(true); window.setTimeout(() => setCopied(false), 1600) }
@@ -59,6 +59,7 @@ export default function RoomPage() {
     <footer className={styles.pageFooter}><span><Icon name="sync" size={13} />编辑器彼此独立，可同时查看。</span><span>当前 {users.length} 位参与者</span></footer>
   </main>
 }
+
 
 
 
