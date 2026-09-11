@@ -9,13 +9,13 @@ interface RoomData {
 
 // Simple in-memory storage for local development
 class LocalStorage {
-  private storage: Map<string, RoomData> = new Map()
+  private storage: Map<string, unknown> = new Map()
 
   async get<T>(key: string): Promise<T | null> {
     return (this.storage.get(key) as T) || null
   }
 
-  async set(key: string, value: RoomData, options?: { ex?: number }): Promise<void> {
+  async set(key: string, value: unknown, options?: { ex?: number }): Promise<void> {
     this.storage.set(key, value)
 
     // Simulate expiration
@@ -61,7 +61,7 @@ class RedisAdapter {
     }
   }
 
-  async set(key: string, value: RoomData, options?: { ex?: number }): Promise<void> {
+  async set(key: string, value: unknown, options?: { ex?: number }): Promise<void> {
     try {
       const serialized = JSON.stringify(value)
       if (options?.ex) {

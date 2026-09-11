@@ -194,6 +194,17 @@
   margin-right: auto;
 }
 
+.modeButtons { display: grid; gap: 9px; }
+.modeButton { display: flex; align-items: center; gap: 11px; width: 100%; min-height: 58px; padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--input); color: var(--text); text-align: left; }
+.modeButton:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.modeIcon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); flex: 0 0 auto; }
+.modeButton > span:nth-child(2) { display: grid; gap: 3px; flex: 1; }
+.modeButton b { font-size: 12px; font-weight: 600; }
+.modeButton small { color: var(--muted); font-size: 10px; }
+.modeChat .modeIcon { color: #c084fc; background: color-mix(in srgb, #c084fc 14%, transparent); }
+.modeSoon { opacity: .58; cursor: not-allowed; }
+.soonTag { color: var(--faint); font: 9px Consolas,monospace; letter-spacing: 1px; }
+
 .createButton:hover  {
   background: var(--accent-hover);
   box-shadow: 0 5px 20px var(--glow);
@@ -220,6 +231,10 @@
   font-weight: 550;
   margin-bottom: 9px;
 }
+.modeChoice { display: flex; gap: 6px; margin-bottom: 8px; }
+.modeChoice button { flex: 1; height: 32px; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--muted); font-size: 11px; }
+.modeChoice button:hover { border-color: var(--accent); color: var(--accent); }
+.modeChoiceActive { border-color: var(--accent) !important; background: var(--accent-soft) !important; color: var(--accent) !important; }
 
 .inputRow  {
   display: flex;
@@ -363,29 +378,34 @@
 @media (max-width: 760px)  {
   .hero  {
     grid-template-columns: 1fr;
-    gap: 48px;
-    padding: 48px 0 36px;
+    gap: 20px;
+    padding: 24px 0 20px;
   }
   .intro  {
     text-align: center;
   }
+  .benefits { display: none; }
   .eyebrow,.benefits  {
     justify-content: center;
   }
   .title  {
-    font-size: 52px;
+    font-size: 36px;
+    letter-spacing: -1.8px;
   }
   .description  {
     max-width: 380px;
-    margin: 20px auto 0;
+    margin: 12px auto 0;
+    font-size: 13px;
+    line-height: 1.6;
   }
   .flow  {
-    margin: 28px auto 0;
+    display: none;
   }
   .workspace  {
     width: 100%;
     max-width: 470px;
     margin: auto;
+    padding: 18px;
   }
   .features  {
     grid-template-columns: 1fr;

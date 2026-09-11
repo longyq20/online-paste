@@ -6,6 +6,7 @@ interface RoomData {
   version: number
   lastModified: string
 }
+interface ChatUser { uid: string; id: number; name: string; color: string; text: string; status: 'editing' | 'done' }
 
 export async function GET(
   request: NextRequest,
@@ -13,9 +14,12 @@ export async function GET(
 ) {
   try {
     const { roomId } = await context.params
+    const mode = new URL(request.url).searchParams.get('mode') === 'chat' ? 'chat' : 'sync'
+    const roomKey = `room:${mode}:${roomId}`
+    if (mode === 'chat') return NextResponse.json({ mode, users: (await kv.get<ChatUser[]>(roomKey)) || [] })
 
     // Get room data from KV
-    const roomData = await kv.get<RoomData>(`room:${roomId}`)
+    const roomData = await kv.get<RoomData>(roomKey)
 
     if (!roomData) {
       // Return empty room if it doesn't exist
@@ -23,10 +27,11 @@ export async function GET(
         content: '',
         version: 0,
         lastModified: new Date().toISOString(),
+        mode,
       })
     }
 
-    return NextResponse.json(roomData)
+      return NextResponse.json({ ...roomData, mode })
   } catch (error) {
     console.error('Error fetching room:', error)
     return NextResponse.json(
@@ -42,10 +47,22 @@ export async function POST(
 ) {
   try {
     const { roomId } = await context.params
-    const { content } = await request.json()
+    const body = await request.json()
+    const { content } = body
+    const mode = new URL(request.url).searchParams.get('mode') === 'chat' ? 'chat' : 'sync'
+    const roomKey = `room:${mode}:${roomId}`
+    if (mode === 'chat') {
+      const users = (await kv.get<ChatUser[]>(roomKey)) || []
+      const incoming = Array.isArray(body.users) ? body.users.filter((user: ChatUser) => user && typeof user.uid === 'string') : []
+      const merged = new Map(users.map(user => [user.uid, user]))
+      for (const user of incoming) merged.set(user.uid, user)
+      const next = Array.from(merged.values())
+      await kv.set(roomKey, next, { ex: 60 * 60 * 24 * 7 })
+      return NextResponse.json({ mode, users: next })
+    }
 
     // Get current version
-    const currentData = await kv.get<RoomData>(`room:${roomId}`)
+    const currentData = await kv.get<RoomData>(roomKey)
     const newVersion = (currentData?.version || 0) + 1
 
     const roomData: RoomData = {
@@ -55,9 +72,9 @@ export async function POST(
     }
 
     // Save to KV with 7 days expiration
-    await kv.set(`room:${roomId}`, roomData, { ex: 60 * 60 * 24 * 7 })
+    await kv.set(roomKey, roomData, { ex: 60 * 60 * 24 * 7 })
 
-    return NextResponse.json(roomData)
+    return NextResponse.json({ ...roomData, mode })
   } catch (error) {
     console.error('Error saving room:', error)
     return NextResponse.json(

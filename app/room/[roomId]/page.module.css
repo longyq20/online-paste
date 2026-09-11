@@ -167,6 +167,40 @@
   gap: 14px;
 }
 
+.countBadge { border-radius: 99px; padding: 2px 7px; background: var(--accent-soft); color: var(--accent); font: 10px Consolas,monospace; }
+.legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.legendItem { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 10px; }
+.legendItem i, .userDot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: var(--user-color); }
+.addButton { border: 1px solid var(--border-strong); border-radius: 5px; padding: 8px 10px; background: var(--input); color: var(--text); font-size: 11px; white-space: nowrap; }
+.addButton:hover { border-color: var(--accent); color: var(--accent); }
+.editorGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; padding: 14px; overflow: auto; flex: 1; align-content: start; background: var(--input); }
+.userEditor { display: flex; flex-direction: column; min-height: 300px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--user-color) 45%, var(--border)); border-radius: 7px; background: var(--surface); }
+.userHeader { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 11px; }
+.userIdentity { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
+.liveLabel { color: var(--user-color); font: 9px Consolas,monospace; letter-spacing: 1px; }
+.doneLabel { color: var(--success); font: 9px Consolas,monospace; letter-spacing: 1px; }
+.typingDots { display: inline-block; width: 18px; text-align: left; animation: typing 1.2s steps(2,end) infinite; }
+@keyframes typing { 0%,45% { opacity: .3; } 60%,100% { opacity: 1; } }
+.editorDone { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+.userFooter { display: flex; justify-content: space-between; align-items: center; }
+.userActions { display: inline-flex; align-items: center; gap: 7px; }
+.copyEditorButton { display: inline-flex; align-items: center; gap: 5px; border: 1px solid transparent; border-radius: 4px; padding: 5px 7px; background: transparent; color: var(--muted); font-size: 10px; }
+.copyEditorButton:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.copyEditorButton:disabled { opacity: .45; cursor: default; }
+.okButton { border: 1px solid var(--border-strong); border-radius: 4px; padding: 5px 11px; background: transparent; color: var(--muted); font: 10px Consolas,monospace; }
+.okButton:hover:not(:disabled) { border-color: var(--success); color: var(--success); }
+.okButton:disabled { border-color: transparent; color: var(--success); cursor: default; }
+.syncMode .okButton, .syncMode .liveLabel, .syncMode .doneLabel { display: none; }
+.syncMode { border-radius: 0; }
+.syncMode .editorGrid { padding: 0; gap: 0; background: transparent; align-content: stretch; }
+.syncMode .userEditor { border: 0; border-radius: 0; min-height: 0; height: 100%; background: transparent; }
+.syncMode .userEditor { flex: 1 1 auto; }
+.syncMode .userEditor .textarea { min-height: 0; resize: none; }
+.syncMode .userHeader { padding: 10px 22px; }
+.syncMode .userFooter .copyEditorButton { display: none; }
+.userEditor .textarea { min-height: 220px; resize: vertical; }
+.userFooter { padding: 8px 12px; border-top: 1px solid var(--border); color: var(--faint); font: 10px Consolas,monospace; }
+
 .copyContentButton {
   display: inline-flex;
   align-items: center;
@@ -353,6 +387,11 @@
   .editorContainer {
     min-height: 0;
   }
+  .editorActions { align-items: flex-end; flex-direction: column; gap: 6px; }
+  .legend { justify-content: flex-end; }
+  .editorGrid { grid-template-columns: 1fr; padding: 8px; }
+  .userEditor { min-height: 240px; }
+  .userEditor .textarea { min-height: 150px; }
   .editorHeader  {
     padding: 8px 12px;
     gap: 8px;
