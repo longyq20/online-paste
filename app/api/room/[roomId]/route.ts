@@ -6,7 +6,7 @@ interface RoomData {
   version: number
   lastModified: string
 }
-interface ChatUser { uid: string; id: number; name: string; color: string; text: string; status: 'editing' | 'done' }
+interface ChatUser { uid: string; ownerUid: string; id: number; name: string; color: string; text: string; status: 'editing' | 'done' }
 
 export async function GET(
   request: NextRequest,
@@ -53,8 +53,11 @@ export async function POST(
     const roomKey = `room:${mode}:${roomId}`
     if (mode === 'chat') {
       const users = (await kv.get<ChatUser[]>(roomKey)) || []
+      const removeUids = Array.isArray(body.removeUids) ? body.removeUids.filter((uid: unknown) => typeof uid === 'string') : []
+      const ownerUid = typeof body.ownerUid === 'string' ? body.ownerUid : ''
+      const remaining = users.filter(user => !(removeUids.includes(user.uid) && user.ownerUid === ownerUid))
       const incoming = body.user && typeof body.user.uid === 'string' ? [body.user] : (Array.isArray(body.users) ? body.users.filter((user: ChatUser) => user && typeof user.uid === 'string') : [])
-      const merged = new Map(users.map(user => [user.uid, user]))
+      const merged = new Map(remaining.map(user => [user.uid, user]))
       for (const user of incoming) merged.set(user.uid, user)
       const next = Array.from(merged.values())
       await kv.set(roomKey, next, { ex: 60 * 60 * 24 * 7 })
