@@ -53,7 +53,7 @@ export async function POST(
     const roomKey = `room:${mode}:${roomId}`
     if (mode === 'chat') {
       const users = (await kv.get<ChatUser[]>(roomKey)) || []
-      const incoming = Array.isArray(body.users) ? body.users.filter((user: ChatUser) => user && typeof user.uid === 'string') : []
+      const incoming = body.user && typeof body.user.uid === 'string' ? [body.user] : (Array.isArray(body.users) ? body.users.filter((user: ChatUser) => user && typeof user.uid === 'string') : [])
       const merged = new Map(users.map(user => [user.uid, user]))
       for (const user of incoming) merged.set(user.uid, user)
       const next = Array.from(merged.values())
